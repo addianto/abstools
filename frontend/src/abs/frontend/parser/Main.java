@@ -78,33 +78,35 @@ public class Main {
     }
 
     public void mainMethod(final String... args) {
-        try {
-            java.util.List<String> argslist = Arrays.asList(args);
-            if (argslist.contains("-maude")) {
-                abs.backend.maude.MaudeCompiler.main(args);
-            } else if(argslist.contains("-java")) {
-                abs.backend.java.JavaBackend.main(args);
-            } else if (argslist.contains("-erlang")) {
-                abs.backend.erlang.ErlangBackend.main(args);
-            } else if (argslist.contains("-prolog")) {
-                abs.backend.prolog.PrologBackend.main(args);
-            } else if (argslist.contains("-coreabs")) {
-                abs.backend.coreabs.CoreAbsBackend.main(args);
-            } else if (argslist.contains("-prettyprint")) {
-                abs.backend.prettyprint.PrettyPrinterBackEnd.main(args);
-            } else if (argslist.contains("-keyabs")) {
-                abs.backend.keyabs.KeyAbsBackend.main(args);
-            } else if (argslist.contains("-outline")) {
-                abs.backend.outline.OutlinePrinterBackEnd.main(args);
-            } else {
-                Model m = parse(args);
-                if (m.hasParserErrors()) {
-                    printParserErrorAndExit();
-                }
-            }
-        } catch (Exception e) {
-            printErrorAndExit(e.getMessage());
-        }
+       try {
+           java.util.List<String> argslist = Arrays.asList(args);
+           if (argslist.contains("-maude")) {
+               abs.backend.maude.MaudeCompiler.main(args);
+           } else if(argslist.contains("-java")) {
+               abs.backend.java.JavaBackend.main(args);
+           } else if (argslist.contains("-erlang")) {
+               abs.backend.erlang.ErlangBackend.main(args);
+           } else if (argslist.contains("-prolog")) {
+               abs.backend.prolog.PrologBackend.main(args);
+           } else if (argslist.contains("-coreabs")) {
+               abs.backend.coreabs.CoreAbsBackend.main(args);
+           } else if (argslist.contains("-prettyprint")) {
+               abs.backend.prettyprint.PrettyPrinterBackEnd.main(args);
+           } else if (argslist.contains("-keyabs")) {
+               abs.backend.keyabs.KeyAbsBackend.main(args);
+           } else if (argslist.contains("-outline")) {
+               abs.backend.outline.OutlinePrinterBackEnd.main(args);
+           } else if (argslist.contains("-dbschema")) {
+               abs.backend.dbschema.GenerateDBSchema.main(args);
+           } else {
+               Model m = parse(args);
+               if (m.hasParserErrors()) {
+                   printParserErrorAndExit();
+               }
+           }
+       } catch (Exception e) {
+          printErrorAndExit(e.getMessage());
+       }
     }
 
     public void setWithStdLib(boolean withStdLib) {
