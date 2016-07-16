@@ -32,3 +32,4 @@ build/
 eclipsehome.properties
 .bundle/
 .metadata/
+/eclipse-plugin/update-site/
