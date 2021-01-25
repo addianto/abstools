@@ -63,8 +63,16 @@ public class ABSBuiltInFunctions {
         return ABSInteger.fromBigInt(result);
     }
 
+    public static abs.backend.java.lib.types.ABSInterface thisDC() {
+        return ABSRuntime.getCurrentCOG().getDC();
+    }
+
     public static <T> ABSString toString(T t) {
-        return ABSString.fromString(t.toString());
+        if (t == null) {
+            return ABSString.fromString("null");
+        } else {
+            return ABSString.fromString(t.toString());
+        }
     }
 
     /*
@@ -197,6 +205,14 @@ public class ABSBuiltInFunctions {
 
     public static ABSInteger truncate(ABSRational r) {
         return r.truncate();
+    }
+
+    public static ABSInteger numerator(ABSRational r) {
+        return r.numerator();
+    }
+
+    public static ABSInteger denominator(ABSRational r) {
+        return r.denominator();
     }
 
 }

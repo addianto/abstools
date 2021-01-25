@@ -7,6 +7,8 @@ aspect VarResolution {
     syn lazy VarOrFieldDecl VarOrFieldUse.getDecl();
     eq VarUse.getDecl() = lookupVarOrFieldName(getName(),false);
     eq FieldUse.getDecl() = lookupVarOrFieldName(getName(),true);
+    syn lazy VarOrFieldDecl PatternVarUse.getDecl();
+    eq PatternVarUse.getDecl() = lookupVarOrFieldName(getName(), false);
 
     /**
      * Replace VarUse nodes with field accesses, since in the grammar this.x and x are different.
@@ -20,7 +22,7 @@ aspect VarResolution {
          * The InitChecker was using those, I am
          * not sure if they are used for absolute
          * addressing the source anywhere. */
-        fu.setPosition(getStartPos(), getEndPos());
+        fu.setPositionFromNode(this);
         return fu;
        }
     }
@@ -42,6 +44,20 @@ aspect VarResolution {
         }
         return res;
     }
+
+    /**
+     * Get directly declared variables.  Does not descent into sub-blocks.
+     **/
+    syn lazy Collection<VarDecl> Block.getDirectVars() {
+        ArrayList<VarDecl> res = new ArrayList<VarDecl>();
+        for (Stmt stmt : getStmts()) {
+            if (stmt instanceof VarDeclStmt) {
+                res.add(((VarDeclStmt) stmt).getVarDecl());
+            }
+        }
+        return res;
+    }
+
     
     syn lazy PatternVarDecl Pattern.locallookupVarOrFieldName(String name, boolean fieldOnly);
     eq Pattern.locallookupVarOrFieldName(String name, boolean fieldOnly) = null;
@@ -190,15 +206,25 @@ aspect VarResolution {
         return var;
     }
 
+    syn lazy VarOrFieldDecl TraitExpr.mylookupVarOrFieldName(String name, boolean fieldOnly) {
+	      ASTNode<ASTNode> obj = this;
+	      while(obj != null && !(obj instanceof Modifier))
+	          obj = obj.parent;
+	      if(obj != null){
+	          Modifier mod = (Modifier)obj;
+	          return mod.locallookupVarOrFieldName(name, fieldOnly);
+	      }else{
+	          throw new DeltaModellingException("Cannot find modifier above TraitExpr in AST!");
+	      }
+	  }
     inh VarOrFieldDecl MethodImpl.lookupVarOrFieldName(String name, boolean fieldOnly);
     
     eq ClassDecl.getMethod(int i).lookupVarOrFieldName(String name, boolean fieldOnly) 
         = locallookupVarOrFieldName(name,fieldOnly);
     
-    eq AddMethodModifier.getMethodImpl().lookupVarOrFieldName(String name, boolean fieldOnly) //= null;
-        = locallookupVarOrFieldName(name,fieldOnly);
-    eq ModifyMethodModifier.getMethodImpl().lookupVarOrFieldName(String name, boolean fieldOnly) //= null;
-        = locallookupVarOrFieldName(name,fieldOnly);
+    eq TraitSetExpr.getMethodImpl().lookupVarOrFieldName(String name, boolean fieldOnly) //= null;
+        = mylookupVarOrFieldName(name,fieldOnly);
+
     
     syn lazy VarOrFieldDecl MethodImpl.locallookupVarOrFieldName(String name, boolean fieldOnly) {
         if (!fieldOnly) {
@@ -287,9 +313,9 @@ aspect VarResolution {
         when (lookupVarOrFieldName(getName(),false) == null)
         to PatternVar {
             PatternVarDecl decl = new PatternVarDecl(getName());
-            decl.setPosition(getStartPos(), getEndPos());
+            decl.setPositionFromNode(this);
             PatternVar v = new PatternVar(decl);
-            v.setPosition(getStartPos(), getEndPos());
+            v.setPositionFromNode(this);
             return v;
         }
     }

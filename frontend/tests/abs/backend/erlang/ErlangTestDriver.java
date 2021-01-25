@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.util.regex.Matcher;
+import java.util.EnumSet;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
@@ -34,6 +35,9 @@ public class ErlangTestDriver extends ABSTest implements BackendTestDriver {
     }
 
     public static boolean checkErlang() {
+        /* TODO: Should be checked earlier instead, before configuring the JUnit suites. */
+        String doAbs = System.getProperty("abs.junit.erlang");
+        Assume.assumeFalse("Erlang tests disabled via -Dabs.junit.erlang", "0".equals(doAbs));
         if (SemanticTests.checkProg("erl")) {
             // http://stackoverflow.com/a/9561398/60462
             ProcessBuilder pb = new ProcessBuilder("erl", "-eval", "erlang:display(erlang:system_info(otp_release)), halt().",  "-noshell");
@@ -104,7 +108,7 @@ public class ErlangTestDriver extends ABSTest implements BackendTestDriver {
         try {
             f = Files.createTempDir();
             f.deleteOnExit();
-            genCode(model, f, true);
+            genCode(model, f, false);
             make(f);
         } finally {
             try {
@@ -127,17 +131,17 @@ public class ErlangTestDriver extends ABSTest implements BackendTestDriver {
      */
     private String genCode(Model model, File targetDir, boolean appendResultprinter) throws IOException, InterruptedException, InternalBackendException {
         if (model.hasErrors()) {
-            Assert.fail(model.getErrors().getFirst().getHelpMessage());
+            Assert.fail(model.getErrors().getFirstError().getHelpMessage());
         }
         if (model.hasTypeErrors()) {
-            Assert.fail(model.getTypeErrors().getFirst().getHelpMessage());
+            Assert.fail(model.getTypeErrors().getFirstError().getHelpMessage());
         }
         MainBlock mb = model.getMainBlock();
         if (mb != null && appendResultprinter) {
             mb.addStmt(new ReturnStmt(new List<Annotation>(),
                                       new VarUse("testresult")));
         }
-        ErlangBackend.compile(model, targetDir, true);
+        ErlangBackend.compile(model, targetDir, EnumSet.of(ErlangBackend.CompileOptions.VERBOSE));
         if (mb == null)
             return null;
         else
@@ -159,7 +163,7 @@ public class ErlangTestDriver extends ABSTest implements BackendTestDriver {
 
     private static final String RUN_SCRIPT=  
             "#!/usr/bin/env escript\n"+
-            "%%! -pa ebin\n"+
+            "%%! -pa absmodel/ebin -pa absmodel/deps/cowboy/ebin -pa absmodel/deps/cowlib/ebin -pa absmodel/deps/ranch/ebin -pa absmodel/deps/jsx/ebin -pa ebin\n"+
             "main(Arg)->"+
             "V=runtime:start(Arg),"+
             "timer:sleep(10),"+

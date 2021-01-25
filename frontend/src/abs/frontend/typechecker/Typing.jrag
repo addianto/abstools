@@ -67,7 +67,9 @@ aspect Typing {
 //    inh Type MethodImpl.getUnitType();
 
     syn lazy Type Decl.getType();
-    
+    /**********/
+    eq TraitDecl.getType() = getModel().getUnitType();
+    /**********/
     eq ClassDecl.getType() = new UnionType(this, getImplementedInterfaceUses());
     eq FunctionDecl.getType() = getTypeUse().getType();
     eq DataConstructor.getType() = getDataTypeDecl().getType();
@@ -95,7 +97,7 @@ aspect Typing {
     eq AmbiguousDecl.getType() = UnknownType.INSTANCE;
     
     syn Type ConstructorArg.getType();
-    eq ConstructorArg.getType() = getDataTypeUse().getType();
+    eq ConstructorArg.getType() = getTypeUse().getType();
     
     syn Type VarOrFieldDecl.getType();
     eq TypedVarOrFieldDecl.getType() = getAccess().getType();
@@ -282,6 +284,8 @@ aspect Typing {
     eq CaseStmt.getBranch(int i).getPatternExpType() = getExpr().getType();
     eq TryCatchFinallyStmt.getCatch(int i).getPatternExpType()
         = getModel().getExceptionType();
+    eq ClassDecl.getRecoverBranch(int i).getPatternExpType()
+        = getModel().getExceptionType();
     
     syn lazy Type Pattern.getType();
     eq ConstructorPattern.getType() = getInhType();
@@ -396,7 +400,7 @@ aspect Typing {
 
     // Unfortunately must be in same file as the interface. TypeChecker would be a better place:
 
-    public void HasActualParams.typeCheckEqualParams(SemanticErrorList l, HasParams params) {
+    public void HasActualParams.typeCheckEqualParams(SemanticConditionList l, HasParams params) {
         TypeCheckerHelper.typeCheckEqual(l, this, params.getTypes());
     }
     public Map<TypeParameter, Type> HasActualParams.getTypeParamBinding(ASTNode<?> node, HasTypes params) {

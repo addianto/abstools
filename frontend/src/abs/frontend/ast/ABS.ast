@@ -8,11 +8,11 @@
 Name ::= <Name>;
 DeltaID ::= <Name>;
 
-Model ::= CompilationUnit* /ImplicitProduct*/ ;
+Model ::= CompilationUnit* /Product*/ ;
 //Model ::= CompilationUnit* ;
 
 
-CompilationUnit ::= <Name> ModuleDecl* DeltaDecl* UpdateDecl* [ProductLine] Product* FeatureDecl* FExt*;
+CompilationUnit ::= <Name> ModuleDecl* DeltaDecl* UpdateDecl* [ProductLine] ProductDecl* FeatureDecl* FExt*;
 ModuleDecl ::= <Name> Export* Import* Decl* [Block:MainBlock];
 DeltaDecl ::= <Name> Param:DeltaParamDecl* DeltaAccess* ModuleModifier* ;
 UpdateDecl ::= <Name> ObjectUpdate* ;
@@ -29,14 +29,25 @@ FromExport: Export ::= Name* <ModuleName>;
 // (see below for Blocks)
 
 DeltaAccess: StarImport ::= <ModuleName>;
-
+/***************************************/
 abstract Decl ::= <Name>;
 abstract BehaviorDecl: Decl ::= ; // Entities used in behavior expressions
 abstract TypeDecl: Decl; // Entities used in type expressions
 
+TraitDecl : Decl ::= TraitExpr;
+
+abstract TraitExpr;
+TraitSetExpr : TraitExpr ::= MethodImpl*;
+TraitNameExpr : TraitExpr ::= <Name>;
+TraitModifyExpr : TraitExpr ::= TraitExpr MethodModifier;
+
+
+TraitUse : Modifier ::= TraitExpr;
+/***************************************/
+
 UnknownDecl: Decl; // Unknown declarations
 AmbiguousDecl: UnknownDecl ::= <Alternative:java.util.List<Decl>>;
-ClassDecl: BehaviorDecl ::= Annotation* Param:ParamDecl* ImplementedInterfaceUse:InterfaceTypeUse* [InitBlock] Field:FieldDecl* Method:MethodImpl*;
+ClassDecl: BehaviorDecl ::= Annotation* Param:ParamDecl* ImplementedInterfaceUse:InterfaceTypeUse* TraitUse* [InitBlock] RecoverBranch:CaseBranchStmt* Field:FieldDecl* Method:MethodImpl*;
 FunctionDecl: BehaviorDecl ::= Annotation* TypeUse Param:ParamDecl* FunctionDef ;
 DataConstructor : BehaviorDecl ::= <Name> ConstructorArg:ConstructorArg* ;
 ParametricFunctionDecl : FunctionDecl ::= Annotation* TypeParameter:TypeParameterDecl* ;
@@ -53,7 +64,7 @@ TypeParameterDecl : TypeDecl ::= <Name>; // local declaration
 ParametricDataTypeDecl : DataTypeDecl ::= Annotation* TypeParameter:TypeParameterDecl* ;
 TypeSynDecl: TypeDecl ::= Annotation* Value:TypeUse ;
 
-ConstructorArg ::= DataTypeUse [SelectorName:Name];
+ConstructorArg ::= TypeUse [SelectorName:Name];
 
 
 abstract DeltaParamDecl;
@@ -67,10 +78,8 @@ HasInterface : HasCondition ::= InterfaceTypeUse;
 
 abstract ModuleModifier;
 abstract NamespaceModifier : ModuleModifier;
- 
 abstract OOModifier : ModuleModifier;
 abstract ClassModifier : OOModifier;
-abstract Modifier;
 abstract InterfaceModifier : OOModifier;
 abstract MethodSigModifier;
 
@@ -95,13 +104,17 @@ AddInterfaceModifier : InterfaceModifier ::= InterfaceDecl;
 RemoveInterfaceModifier : InterfaceModifier ::= <Name>;
 ModifyInterfaceModifier : InterfaceModifier ::= <Name> MethodSigModifier*;
 
+abstract Modifier;
+abstract MethodModifier : Modifier;
+AddMethodModifier : MethodModifier ::= TraitExpr;
+ModifyMethodModifier : MethodModifier ::= TraitExpr;
+RemoveMethodModifier : MethodModifier ::= MethodSig*;
 AddFieldModifier : Modifier ::= FieldDecl;
 RemoveFieldModifier : Modifier ::= FieldDecl;
-AddMethodModifier : Modifier ::= MethodImpl;
-RemoveMethodModifier : Modifier ::= MethodSig;
-ModifyMethodModifier : Modifier ::= MethodImpl;
 AddMethodSigModifier : MethodSigModifier ::= MethodSig;
 RemoveMethodSigModifier : MethodSigModifier ::= MethodSig;
+
+DeltaTraitModifier : Modifier ::= MethodModifier;
 
 ObjectUpdate ::= <ClassName> AwaitStmt UpdatePreamble PreBody:AssignStmt* PostBody:AssignStmt* ;
 UpdatePreamble ::= VarDeclStmt* ; // TODO also allow FunctionDecls and DataTypeDecls
@@ -169,11 +182,11 @@ ExpressionStmt: Stmt ::= Exp:Exp;
 AssertStmt: Stmt ::= Condition:PureExp;
 VarDeclStmt: Stmt ::= VarDecl:VarDecl;
 
-IfStmt: Stmt ::= Condition:PureExp Then:Stmt [Else:Stmt];
-WhileStmt: Stmt ::= Condition:PureExp Body:Stmt;
+IfStmt: Stmt ::= Condition:PureExp Then:Block [Else:Block];
+WhileStmt: Stmt ::= Condition:PureExp Body:Block;
 CaseStmt : Stmt ::= Expr:PureExp Branch:CaseBranchStmt* ;
-CaseBranchStmt ::= Left:Pattern Right:Stmt ;
-TryCatchFinallyStmt : Stmt ::= Body:Stmt Catch:CaseBranchStmt* [Finally:Stmt] ;
+CaseBranchStmt ::= Left:Pattern Right:Block ;
+TryCatchFinallyStmt : Stmt ::= Body:Block Catch:CaseBranchStmt* [Finally:Block] ;
 // A Block is the body of programs and methods and is also used for initblocks
 // It contains a list of zero or more ast.VarOrFieldDecl
 // and zero or more ast.Stmt, these are named Fields and Stmts resp.
@@ -322,6 +335,15 @@ FID: Deltaparam ::= <FeatName>;
 FIDAID: Deltaparam ::= <FeatName> <AttrName>;
 Const: Deltaparam ::= Value ;
 
-ImplicitProduct ::= Feature* ;
-Product : ImplicitProduct ::= <Name> Feature* Reconfiguration* ;
+// Extended Product Selection Language
+ProductDecl ::= <Name> ProductExpr Reconfiguration* ;
+
+abstract ProductExpr ;
+ProductFeatureSet : ProductExpr ::= Feature* ;
+ProductIntersect : ProductExpr ::= Left:ProductExpr Right:ProductExpr ;
+ProductUnion : ProductExpr ::= Left:ProductExpr Right:ProductExpr ;
+ProductDifference : ProductExpr ::= Left:ProductExpr Right:ProductExpr ;
+ProductName : ProductExpr ::= <Name> ;
+
+Product ::= Feature* ;
 Reconfiguration ::= <TargetProductID> DeltaID* <UpdateID> ;

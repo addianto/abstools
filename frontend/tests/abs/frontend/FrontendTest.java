@@ -10,9 +10,10 @@ import java.io.IOException;
 import java.util.Set;
 
 import abs.ABSTest;
+import abs.common.WrongProgramArgumentException;
 import abs.frontend.analyser.ErrorMessage;
-import abs.frontend.analyser.SemanticError;
-import abs.frontend.analyser.SemanticErrorList;
+import abs.frontend.analyser.SemanticCondition;
+import abs.frontend.analyser.SemanticConditionList;
 import abs.frontend.ast.AssignStmt;
 import abs.frontend.ast.CaseBranch;
 import abs.frontend.ast.CaseExp;
@@ -36,7 +37,7 @@ public class FrontendTest extends ABSTest {
         return assertParse(s, WITH_STD_LIB);
     }
 
-    protected Model assertParseFileOk(String fileName, boolean withStdLib) throws IOException {
+    protected Model assertParseFileOk(String fileName, boolean withStdLib) throws IOException, WrongProgramArgumentException {
         if (withStdLib) {
             return assertParseFileOk(fileName, WITH_STD_LIB);
         } else {
@@ -52,7 +53,7 @@ public class FrontendTest extends ABSTest {
         }
     }
 
-    protected Model assertTypeCheckFileOk(String fileName, boolean withStdLib) throws IOException {
+    protected Model assertTypeCheckFileOk(String fileName, boolean withStdLib) throws IOException, WrongProgramArgumentException {
         if (withStdLib) { 
             return assertParseFileOk(fileName, TYPE_CHECK, WITH_STD_LIB);
         } else {
@@ -178,24 +179,48 @@ public class FrontendTest extends ABSTest {
         assertTypeErrors(absCode, WITH_STD_LIB);
     }
 
-    protected SemanticError assertTypeErrors(String absCode) {
+    protected SemanticCondition assertTypeErrors(String absCode) {
         return assertTypeErrors(absCode, EXPECT_TYPE_ERROR, WITH_STD_LIB);
     }
 
     protected void assertTypeErrors(String absCode, ErrorMessage expected) {
-        SemanticError e = assertTypeErrors(absCode, EXPECT_TYPE_ERROR, WITH_STD_LIB);
+        SemanticCondition e = assertTypeErrors(absCode, EXPECT_TYPE_ERROR, WITH_STD_LIB);
         assertEquals(expected,e.msg);
     }
 
-    protected SemanticError assertTypeErrors(String absCode, Config... config) {
+    /**
+     * Check for and return the first error occurring in 'absCode', or null if
+     * none found.  If EXPECT_WARNING is set, and EXPECT_TYPE_ERROR is not
+     * set, return the first warning instead.  Produces a test failure if
+     * 'config' contains EXPECT_TYPE_ERROR but no error found.  Produces a
+     * test failure if 'config' contains EXPECT_WARNING but no warning found.
+     * @param absCode - the test case source code
+     * @param config - flags
+     * @return
+     */
+    protected SemanticCondition assertTypeErrors(String absCode, Config... config) {
         Model m = assertParse(absCode, config);
         String msg = "";
-        SemanticErrorList l = m.typeCheck();
-        if (!l.isEmpty()) {
-            msg = l.getFirst().getMsgWithHint(absCode);
+        SemanticConditionList l = m.typeCheck();
+        if (l.containsErrors()) {
+            msg = l.getFirstError().getMsgWithHint(absCode);
+        } else if (l.containsWarnings() && isSet(EXPECT_WARNING, config)) {
+            msg = l.getFirstWarning().getMsgWithHint(absCode);
         }
-        assertEquals(msg, isSet(EXPECT_TYPE_ERROR, config), !l.isEmpty());
-        return l.isEmpty() ? null : l.getFirst();
+
+        assertEquals(msg, isSet(EXPECT_TYPE_ERROR, config), l.containsErrors());
+        if (isSet(EXPECT_WARNING, config)) {
+            assertEquals(msg, isSet(EXPECT_WARNING, config), l.containsWarnings());
+        }
+        return l.containsErrors() ? l.getFirstError() : null;
     }
 
+    protected SemanticCondition assertWarnings(String absCode) {
+        return assertTypeErrors(absCode, EXPECT_WARNING, WITH_STD_LIB);
+    }
+
+    protected void assertWarnings(String absCode, ErrorMessage expected) {
+        SemanticCondition e = assertTypeErrors(absCode, EXPECT_WARNING, WITH_STD_LIB);
+        assertEquals(expected,e.msg);
+    }
 }

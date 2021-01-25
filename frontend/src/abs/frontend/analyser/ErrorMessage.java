@@ -5,6 +5,7 @@
 package abs.frontend.analyser;
 
 public enum ErrorMessage {
+    ACESSOR_INCOMPARABLE_TYPE("Accessor functions with incomparable types, %s and %s."),
     CYCLIC_INHERITANCE("Cyclic inheritance chain for interface: %s."),
     UNKOWN_INTERFACE("Unknown interface: %s."),
     UNKOWN_DATATYPE("Unknown datatype: %s."),
@@ -37,6 +38,7 @@ public enum ErrorMessage {
     WRONG_NUMBER_OF_TYPE_ARGS("Wrong number of type arguments for parametric type %s. Expected %s, but found %s."),
     TYPE_MISMATCH("Type %s does not match declared type %s."),
     DUPLICATE_CONSTRUCTOR("Constructor %s is already defined."),
+    DUPLICATE_DATATYPE_PARAMETER("Type parameter %s is used more than once."),
     DUPLICATE_CLASS_NAME("Class %s is already defined."),
     DUPLICATE_FUN_NAME("Function %s is already defined."),
     DUPLICATE_METHOD_NAME("Method %s is already defined."),
@@ -58,6 +60,7 @@ public enum ErrorMessage {
     METHOD_NOT_FOUND("Method %s could not be found."),
     NO_CLASS_DECL("Class %s could not be found."),
     NO_FIELD_DECL("Field %s could not be found."),
+    NO_DELTA_DECL("Delta %s could not be found."),
     RETURN_STMT_MUST_BE_LAST("Return statements can only appear as last statement of a method."),
     NAME_NOT_EXPORTED_BY_MODULE("Imported name %s is not exported by module %s."),
     ONLY_UNQUALIFIED_NAMES_ALLOWED("Only unqualfied names are allowed when import names from modules, but name %s is qualified."),
@@ -74,6 +77,7 @@ public enum ErrorMessage {
     CLASSKIND_COG("Cannot instantiate class %s without cog as it is annotated with class kind COG."),
     ASSIGN_TO_FINAL("Assignment to %s %s, which is annotated with [Final]."),
     NOT_ALLOWED_IN_INIT_CODE("%s are not allowed in class initialization code."),
+    NOT_ALLOWED_IN_RECOVER_CODE("%s are not allowed in class recovery code."),
     NOT_ALLOWED_IN_FINALLY_CODE("%s are not allowed in 'finally' block."),
     ATOMIC_METHOD_CONTAINS_ILLEGAL_CODE("Cannot use %s in atomic method %s."),
     ATOMIC_METHOD_WRONG_OVERRIDE("Method %s has not the same atomicity annotation from the method %s defined in interface %s."),
@@ -82,6 +86,10 @@ public enum ErrorMessage {
     DEPLOYMENT_COMPONENT_NOT_COG("Deployment component cannot be created inside a cog."),
     DEPLOYMENT_COMPONENT_IGNORED("Deployment component annotations are not allowed for local objects."),
     EXPECTED_DC("Expected a Deployment component, but received %s."),
+    WRONG_HTTPNAME("Wrong type %s in HTTPName annotation, should be a string."),
+    WRONG_HTTPCALLABLE("Parameter %s: type %s not supported for calling from HTTP."),
+    DUPLICATE_HTTPNAME("Warning: Duplicate HTTP name %s in datatype declaration."),
+
     UNDECLARED_VARIABLE("Unknown variable: %s."),
     NOT_A_LEAF("Feature cannot have more than one group of sub-features: %s."),
     OPT_NOT_IN_ALLOF("The %s feature is optional but the cardinality of its parent is not 'allof'."),
@@ -98,17 +106,26 @@ public enum ErrorMessage {
     DUPLICATE_VARIABLE("Variable %s is already defined."),
     WRONG_DEADLINE_TYPE("Wrong type %s in deadline annotation, should be ABS.StdLib.Duration."),
     WRONG_SIZE_ANNOTATION_TYPE("Wrong type %s in size annotation, should be a number."),
+    WRONG_COST_ANNOTATION_TYPE("Wrong type %s in cost annotation, should be a number."),
     AMBIGIOUS_USE("The use of %s is ambigious. It can refer to the following definitions: %s."),
-    AWAIT_TOO_PURE("You're not checking for anything observable in AWAIT."),
     WRONG_SCHEDULER_TYPE("Invalid scheduler expression type %s, should be ABS.Scheduler.Process."),
     THIS_STATIC("No context for `this`."),
     ORIGINAL_NOT_IN_DELTA("Calls to original(..) are only permitted in modify-class deltas."),
     ERROR_IN_PRODUCT("Error within product %s: %s."),
     ERROR_IN_PRODUCT_WITH_DELTA("Error within product %s while processing delta %s: %s."),
     ERROR_IN_PRODUCT_LINE_DELTA_ORDER("Error in product line %s. No total order exists for the given partial order of deltas."),
-    ERROR_IN_PRODUCT_LINE_MISSING_DELTACLAUSE("Error in product line %s. No delta clause for delta(s): %s (dead deltas)."),
+    MISSING_DELTA_CLAUSE("Warning: Deltas missing in product line %s (dead deltas): %s."),
+    MISSING_DELTA_CLAUSE_ERROR("Delta %s is referenced in 'after' clause but missing in product line %s."),
     AMBIGUOUS_PRODUCTLINE("The product line %s is potentially ambiguous: Deltas %s and %s both target class %s, but their application order is undefined."),
-    DEADLOCK_GENERATION_ERROR("Generated edge: %s.")
+    DEADLOCK_GENERATION_ERROR("Generated edge: %s."),
+    AWAIT_TOO_PURE("Warning: the await expression will never change (try awaiting for a field)."),
+    MAIN_BLOCK_NOT_FOUND("Warning: no main block found."),
+    MAIN_BLOCK_AMBIGUOUS("Warning: this main block is shadowed by the main block from module %s."),
+    IMPLICIT_TRUNCATION("Warning: Implicit truncation from Rat to Int is deprecated."),
+    DEPRECATED_CONSTRUCTOR("Warning: The constructor %s Int is deprecated (use exported functions instead)."),
+    UNDECLARED_PRODUCT("Product %s is not declared"),
+    INVALID_PRODUCT("Product %s does not satisfy the feature model. Constraints failed: %s."),
+    MATCHING_NOT_ALLOWED_IN_CATCH("Non-free pattern variable %s (not allowed in catch branches).")
     ;
 
     private String pattern;

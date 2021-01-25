@@ -4,9 +4,9 @@
  */
 package abs.frontend.parser;
 
-import abs.common.CompilerError;
+import abs.common.CompilerCondition;
 
-public class ParserError extends CompilerError {
+public class ParserError extends CompilerCondition {
     private final int line;
     private final int column;
     private final String message;
@@ -38,4 +38,13 @@ public class ParserError extends CompilerError {
         return column;
     }
 
+    @Override
+    public boolean isError() {
+        return true;
+    }
+
+    @Override
+    public boolean isWarning() {
+        return false;
+    }
 }

@@ -22,7 +22,10 @@ import java.util.jar.JarFile;
 import org.apache.commons.io.FileUtils;
 
 import sun.net.www.protocol.file.FileURLConnection;
+
 import abs.backend.common.CodeStream;
+import abs.common.CompilerUtils;
+import abs.frontend.ast.*;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.ByteStreams;
@@ -48,12 +51,12 @@ public class ErlApp {
     public ErlApp(File destDir) throws IOException {
         super();
         this.destDir = destDir;
-        this.destCodeDir = new File(destDir, "src/");
-        this.destIncludeDir = new File(destDir, "include/");
+        this.destCodeDir = new File(destDir, "absmodel/src/");
+        this.destIncludeDir = new File(destDir, "absmodel/include/");
         destDir.mkdirs();
         FileUtils.cleanDirectory(destDir);
         destDir.mkdirs();
-        new File(destDir, "ebin").mkdir();
+        new File(destDir, "absmodel/ebin").mkdir();
         copyRuntime();
     }
 
@@ -92,18 +95,22 @@ public class ErlApp {
     }
 
     private static final Set<String> RUNTIME_FILES = ImmutableSet.of(
-            "src/*",
-            "include/*",
-            "deps/*",
-            "Emakefile",
-            "Makefile",
+            "absmodel/src/*",
+            "absmodel/include/*",
+            "absmodel/deps/*",
+            "absmodel/priv/*",
+            "absmodel/priv/static/*",
+            // do not copy this since absmodulename.hrl is generated later --
+            // runtime.erl and main_app.erl use the wrong constant
+            // "absmodel/ebin/*",
+            "absmodel/Emakefile",
             "Dockerfile",
             "start_console",
             "run",
-            "rebar.config",
-            "gcstats_as_csv.erl",
+            "absmodel/rebar.config",
             "bin/*",
-            "link_sources"
+            "link_sources",
+            "influx-grafana/*"
             );
     private static final Set<String> EXEC_FILES = ImmutableSet.of(
             "bin/rebar",
@@ -146,7 +153,7 @@ public class ErlApp {
                     String outputFile = f.replace('/', File.separatorChar);
                     File file = new File(destDir, outputFile);
                     file.getParentFile().mkdirs();
-                    ByteStreams.copy(is, Files.newOutputStreamSupplier(file));
+                    ByteStreams.copy(is, Files.asByteSink(file).openStream());
                 }
             }
         } finally {
@@ -167,7 +174,7 @@ public class ErlApp {
                 if (!entry.isDirectory()) {
                     is = jarFile.getInputStream(entry);
                     ByteStreams.copy(is, 
-                            Files.newOutputStreamSupplier(new File(outname, relFilename)));
+                                     Files.asByteSink(new File(outname, relFilename)).openStream());
                 } else {
                     new File(outname, relFilename).mkdirs();
                 }
@@ -183,4 +190,68 @@ public class ErlApp {
         hcs.println("-define(ABSMAINMODULE," + erlModulename + ").");
         hcs.close();
     }
+
+    public void generateDataConstructorInfo(Model model) throws IOException {
+        CodeStream s = createSourceFile("abs_constructor_info");
+        s.println("%%This file is licensed under the terms of the Modified BSD License.");
+        s.println("-module(abs_constructor_info).");
+        s.println("-compile(export_all).");
+        s.println("-include_lib(\"../include/abs_types.hrl\").");
+        s.println();
+        String separator = "";
+
+        for (ModuleDecl m : model.getModuleDecls()) {
+            for (Decl d : m.getDecls()) {
+                if (d instanceof DataTypeDecl) {
+                    DataTypeDecl dd = (DataTypeDecl) d;
+                    for (DataConstructor c : dd.getDataConstructors()) {
+                        boolean useToString = true;
+                        for (ConstructorArg ca : c.getConstructorArgs()) {
+                            List<Annotation> ann = ca.getTypeUse().getAnnotations();
+                            PureExp key = CompilerUtils.getAnnotationValueFromName(ann, "ABS.StdLib.HTTPName");
+                            if (ca.hasSelectorName() || key != null) {
+                                useToString = false;
+                            }
+                        }
+                        if (!useToString) {
+                            s.println(separator);
+                            separator = ";";
+                            s.format("to_json(Abs=[data%s | _]) -> ", c.getName());
+                            String mapSeparator = "";
+                            s.print("#{");
+                            s.incIndent();
+                            for (int elem = 0; elem < c.getNumConstructorArg(); elem++) {
+                                ConstructorArg ca = c.getConstructorArg(elem);
+                                List<Annotation> ann = ca.getTypeUse().getAnnotations();
+                                String key = null;
+                                PureExp keyann = CompilerUtils.getAnnotationValueFromName(ann, "ABS.StdLib.HTTPName");
+                                if (keyann != null && keyann instanceof StringLiteral) {
+                                    key = ((StringLiteral)keyann).getContent();
+                                } else if (ca.hasSelectorName()) {
+                                    key = ca.getSelectorName().toString();
+                                }
+                                if (key != null) {
+                                    s.println(mapSeparator);
+                                    mapSeparator = ",";
+                                    s.format("<<\"%s\"/utf8>> => modelapi:abs_to_json(lists:nth(%s, Abs))",
+                                             key,
+                                             // nth() indexes 1-based and
+                                             // we need to skip over the first
+                                             // element:
+                                             elem + 2);
+                                }
+                            }
+                            s.println();
+                            s.decIndent();
+                            s.print("}");
+                        }
+                    }
+                }
+            }
+        }
+        s.println(separator);
+        s.pf("to_json(Abs) -> builtin:toString(null, list_to_tuple(Abs)).");
+        s.close();
+    }
+
 }

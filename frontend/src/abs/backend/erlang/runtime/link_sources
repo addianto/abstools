@@ -15,12 +15,13 @@ fi
 
 SOURCE_DIR="$1/frontend/src/abs/backend/erlang/runtime"
 
-for i in src/*.erl include/*.hrl
+for i in absmodel/src/*.erl absmodel/priv/*
 do
-    if [ -f "$SOURCE_DIR/$i" ]
+    if [ -e $SOURCE_DIR/$i ]
     then
         echo "Linking $SOURCE_DIR/$i to $i"
-        rm "$i"
+        rm -rf "$i"
         ln -s "$SOURCE_DIR/$i" "$i"
+        touch "$i"
     fi
 done

@@ -27,8 +27,8 @@ public class VarResolutionTest extends DeltaTest {
                 + "class C {"
                 + "Int x = 0;"
                 + "}"
-                + "delta D;"
-                + "modifies class M.C {"
+                + "delta D; uses M;"
+                + "modifies class C {"
                 + "adds Int y = x;"
                 + "}"
         );
@@ -47,8 +47,8 @@ public class VarResolutionTest extends DeltaTest {
                 + "class C {"
                 + "Int x = 0;"
                 + "}"
-                + "delta D;"
-                + "modifies class M.C {"
+                + "delta D;uses M;"
+                + "modifies class C {"
                 + "adds Int y = x;"
                 + "}"
         );
@@ -60,7 +60,6 @@ public class VarResolutionTest extends DeltaTest {
         FieldDecl fy = (FieldDecl) c.locallookupVarOrFieldName("y", true);
         assertThat(fy.getInitExp() , instanceOf(FieldUse.class));
     }
-
     @Test
     public void fromAddMethodModifierToCoreTest() {
         Model model = assertParseOk(
@@ -68,15 +67,17 @@ public class VarResolutionTest extends DeltaTest {
                 + "class C {"
                 + "Int x = 0;"
                 + "}"
-                + "delta D;"
-                + "modifies class M.C {"
+                + "delta D;uses M;"
+                + "modifies class C {"
                 + "adds Int getX() { return x; }"
                 + "}"
         );
         DeltaDecl delta = findDelta(model, "D");
         ModifyClassModifier mmod = (ModifyClassModifier) delta.getModuleModifier(0);
-        AddMethodModifier mod = (AddMethodModifier) mmod.getModifier(0);
-        ReturnStmt stmt = (ReturnStmt) mod.getMethodImpl().getBlock().getStmt(0);
+        DeltaTraitModifier mod = (DeltaTraitModifier) mmod.getModifier(0);
+        AddMethodModifier opr =  (AddMethodModifier)mod.getMethodModifier();
+        TraitSetExpr expr = (TraitSetExpr)opr.getTraitExpr();
+        ReturnStmt stmt = (ReturnStmt) expr.getMethodImpl(0).getBlock().getStmt(0);
         assertThat(stmt.getRetExp(), instanceOf(FieldUse.class));
     }
 
@@ -88,15 +89,17 @@ public class VarResolutionTest extends DeltaTest {
                 + "Int x = 0;"
                 + "Int getX() { }"
                 + "}"
-                + "delta D;"
-                + "modifies class M.C {"
+                + "delta D;uses M;"
+                + "modifies class C {"
                 + "modifies Int getX() { return x; }"
                 + "}"
                 );
         DeltaDecl delta = findDelta(model, "D");
         ModifyClassModifier mmod = (ModifyClassModifier) delta.getModuleModifier(0);
-        ModifyMethodModifier mod = (ModifyMethodModifier) mmod.getModifier(0);
-        ReturnStmt stmt = (ReturnStmt) mod.getMethodImpl().getBlock().getStmt(0);
+        DeltaTraitModifier mod = (DeltaTraitModifier) mmod.getModifier(0);
+        ModifyMethodModifier opr =  (ModifyMethodModifier)mod.getMethodModifier();
+        TraitSetExpr expr = (TraitSetExpr)opr.getTraitExpr();
+        ReturnStmt stmt = (ReturnStmt) expr.getMethodImpl(0).getBlock().getStmt(0);
         assertThat(stmt.getRetExp(), instanceOf(FieldUse.class));
     }
     
@@ -105,36 +108,41 @@ public class VarResolutionTest extends DeltaTest {
         Model model = assertParseOk(
                 "module M;"
                 + "class C { }"
-                + "delta D;"
-                + "modifies class M.C {"
+                + "delta D;uses M;"
+                + "modifies class C {"
                 + "adds Int x = 0;"
                 + "adds Int getX() { return x; }"
                 + "}"
                 );
         DeltaDecl delta = findDelta(model, "D");
         ModifyClassModifier mmod = (ModifyClassModifier) delta.getModuleModifier(0);
-        AddMethodModifier mod = (AddMethodModifier) mmod.getModifier(1);
-        ReturnStmt stmt = (ReturnStmt) mod.getMethodImpl().getBlock().getStmt(0);
+        DeltaTraitModifier mod = (DeltaTraitModifier) mmod.getModifier(1);
+        AddMethodModifier opr =  (AddMethodModifier)mod.getMethodModifier();
+        TraitSetExpr expr = (TraitSetExpr)opr.getTraitExpr();
+        ReturnStmt stmt = (ReturnStmt) expr.getMethodImpl(0).getBlock().getStmt(0);
         assertThat(stmt.getRetExp(), instanceOf(FieldUse.class));
     }
-    
+
     @Test
     public void fromModifierToOtherModifyClassModifierTest() {
         Model model = assertParseOk(
                 "module M;"
                 + "class C { }"
                 + "delta D;"
-                + "modifies class M.C {"
+                + "uses M;"
+                + "modifies class C {"
                 + "adds Int x = 0;"
                 + "}"
-                + "modifies class M.C {"
+                + " modifies class C {"
                 + "adds Int getX() { return x; }"
                 + "}"
                 );
         DeltaDecl delta = findDelta(model, "D");
         ModifyClassModifier mmod = (ModifyClassModifier) delta.getModuleModifier(1);
-        AddMethodModifier mod = (AddMethodModifier) mmod.getModifier(0);
-        ReturnStmt stmt = (ReturnStmt) mod.getMethodImpl().getBlock().getStmt(0);
+        DeltaTraitModifier mod = (DeltaTraitModifier) mmod.getModifier(0);
+        AddMethodModifier opr =  (AddMethodModifier)mod.getMethodModifier();
+        TraitSetExpr expr = (TraitSetExpr)opr.getTraitExpr();
+        ReturnStmt stmt = (ReturnStmt) expr.getMethodImpl(0).getBlock().getStmt(0);
         assertThat(stmt.getRetExp(), instanceOf(FieldUse.class));
     }
 
@@ -143,17 +151,21 @@ public class VarResolutionTest extends DeltaTest {
         Model model = assertParseOk(
                 "module M;"
                 + "delta D;"
-                + "adds class M.C {"
+                + "uses M;"
+                + "adds class C {"
                 + "Int x = 0;"
                 + "}"
-                + "modifies class M.C {"
+                
+                + "modifies class C {"
                 + "adds Int getX() { return x; }"
                 + "}"
                 );
         DeltaDecl delta = findDelta(model, "D");
         ModifyClassModifier mmod = (ModifyClassModifier) delta.getModuleModifier(1);
-        AddMethodModifier mod = (AddMethodModifier) mmod.getModifier(0);
-        ReturnStmt stmt = (ReturnStmt) mod.getMethodImpl().getBlock().getStmt(0);
+        DeltaTraitModifier mod = (DeltaTraitModifier) mmod.getModifier(0);
+        AddMethodModifier opr =  (AddMethodModifier)mod.getMethodModifier();
+        TraitSetExpr expr = (TraitSetExpr)opr.getTraitExpr();
+        ReturnStmt stmt = (ReturnStmt) expr.getMethodImpl(0).getBlock().getStmt(0);
         assertThat(stmt.getRetExp(), instanceOf(FieldUse.class));
     }
 
@@ -165,21 +177,28 @@ public class VarResolutionTest extends DeltaTest {
                 + "Int x = 0;"
                 + "}"
                 + "delta D;"
-                + "modifies class M.C {"
+                + "uses M;"
+                + "modifies class C {"
                 + "adds Int getX() { Int x = 17; return x; }"
                 + "}"
         );
         DeltaDecl delta = findDelta(model, "D");
         ModifyClassModifier mmod = (ModifyClassModifier) delta.getModuleModifier(0);
-        AddMethodModifier mod = (AddMethodModifier) mmod.getModifier(0);
-        ReturnStmt stmt = (ReturnStmt) mod.getMethodImpl().getBlock().getStmt(1);
+        DeltaTraitModifier mod = (DeltaTraitModifier) mmod.getModifier(0);
+        AddMethodModifier opr =  (AddMethodModifier)mod.getMethodModifier();
+        TraitSetExpr expr = (TraitSetExpr)opr.getTraitExpr();
+        ReturnStmt stmt = (ReturnStmt) expr.getMethodImpl(0).getBlock().getStmt(1);
         assertThat(stmt.getRetExp(), instanceOf(VarUse.class));
     }
     
     @Test
     public void defUseMultipleFiles() throws Exception {
-        Model m = this.assertParseFilesOk(new HashSet<String>() {{ add("tests/abssamples/deltas/defuse/def.abs"); add("tests/abssamples/deltas/defuse/use.abs");}}, true);
-        m.flattenForProduct("Prod");
-        assertTrue(m.typeCheck().isEmpty());
+    Model m = this.assertParseFilesOk(new HashSet<String>() {{ add("tests/abssamples/deltas/defuse/def.abs"); add("tests/abssamples/deltas/defuse/use.abs");}}, true);
+    m.collapseTraitModifiers();
+    m.evaluateAllProductDeclarations();  
+    m.flushCache();
+    m.flattenForProduct("Prod"); 
+    m.flushCache();
+    assertTrue(!m.typeCheck().containsErrors());
     }
 }

@@ -23,7 +23,7 @@ aspect DeltaParameterSubstitution {
     abstract public Value Deltaparam.calcValue(List<Feature> features) throws DeltaModellingWithNodeException;
 
     public Value Const.calcValue(List<Feature> features)  {
-        return (Value) getValue().fullCopy();
+        return (Value) getValue().treeCopyNoTransform();
     }
 
     public Value CID.calcValue(List<Feature> features) {
@@ -47,7 +47,7 @@ aspect DeltaParameterSubstitution {
             if (f.getName().equals(this.getFeatName()))   // found feature
                 for (AttrAssignment attr : f.getAttrAssignments()) {
                     if (attr.getName().equals(getAttrName()))   // found attribute
-                        return (Value) attr.getValue().fullCopy();
+                        return (Value) attr.getValue().treeCopyNoTransform();
                 }
         }
         throw new DeltaModellingException("Argument " + getFeatName() + "." + getAttrName() + " not found.");
@@ -133,13 +133,6 @@ aspect DeltaParameterSubstitution {
     }
     protected void RemoveFieldModifier.applySubstitution(Map<String,Value> subst) throws DeltaModellingWithNodeException {
         getFieldDecl().applySubstitution(subst);
-    }
-    protected void AddMethodModifier.applySubstitution(Map<String,Value> subst) throws DeltaModellingWithNodeException {
-        getMethodImpl().applySubstitution(subst);
-    }
-    protected void RemoveMethodModifier.applySubstitution(Map<String,Value> subst) {}
-    protected void ModifyMethodModifier.applySubstitution(Map<String,Value> subst) throws DeltaModellingWithNodeException {
-        getMethodImpl().applySubstitution(subst);
     }
 
     protected void AddMethodSigModifier.applySubstitution(Map<String,Value> subst) {}
@@ -234,6 +227,15 @@ aspect DeltaParameterSubstitution {
             getChild(i).applySubstitution(subst);
         }
     }
+    
+    //trait
+    
+    @Override
+    protected void DeltaTraitModifier.applySubstitution(Map<String,Value> subst) throws DeltaModellingWithNodeException {}
+    protected void AddMethodModifier.applySubstitution(Map<String,Value> subst) {}
+    protected void ModifyMethodModifier.applySubstitution(Map<String,Value> subst) {}
+    protected void RemoveMethodModifier.applySubstitution(Map<String,Value> subst) {}
+    protected void TraitUse.applySubstitution(Map<String,Value> subst) {}
 
 
 

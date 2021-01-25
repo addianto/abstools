@@ -80,8 +80,10 @@ aspect TargetClassName {
 
 //inform modifier node about the qualified name of the class to which it applies
 aspect TargetQualifiedClassName {
+    abstract public String ClassModifier.targetQualifiedClassName();
     syn String ModifyClassModifier.targetQualifiedClassName() = this.qualifiedName();
     syn String AddClassModifier.targetQualifiedClassName() = this.qualifiedName();
+    syn String RemoveClassModifier.targetQualifiedClassName() = this.qualifiedName();
 
     inh String Modifier.targetQualifiedClassName();
     eq ModifyClassModifier.getModifier().targetQualifiedClassName() = this.qualifiedName();
@@ -101,14 +103,6 @@ aspect QualifiedName {
         return StringUtils.joinNames(moduleName(), getName());
     }
     
-    public String DeltaDecl.qualifiedName() {
-        return this.getName();
-    }
-
-    public String Product.qualifiedName() {
-        return this.getName();
-    }
-
     public String ModuleModifier.qualifiedName() {
         return StringUtils.joinNames(getModuleName(), getSimpleName());
     }
@@ -118,7 +112,7 @@ aspect QualifiedName {
 aspect FileName {
     /* When flattening, nodes get copied from one CompilationUnit to another, therefore 
      * the information about the source file where they were originally declared is lost.
-     * We prevent this by setting sourceFileName whenever a node is copied using fullCopy().
+     * We prevent this by setting sourceFileName whenever a node is copied using treeCopyNoTransform().
      * When calling getFileName() on a node whose originalFileName is null, we delegate to the parent node.
      * At the latest when reaching the CompilationUnit, we should get a meaningful value.
      */

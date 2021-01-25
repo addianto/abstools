@@ -41,13 +41,14 @@ aspect doOutlinePrinter {
 
         if (hasBlock()) {
 			stream.println("<category text='main' value='main' selectable='true' />");
+            stream.println("<category text='main block' value='"+getName()+"' selectable='true' />");
         }
         stream.println("</category>");
         stream.flush();
 
     }
 
-    public void Product.doOutlinePrint(PrintWriter stream, String prefix) {
+    public void ProductDecl.doOutlinePrint(PrintWriter stream, String prefix) {
     }
 
     public void Feature.doOutlinePrint(PrintWriter stream, String prefix) {
@@ -242,16 +243,7 @@ aspect doOutlinePrinter {
     public void AddFieldModifier.doOutlinePrint(PrintWriter stream, String prefix) {
     }
 
-    public void AddMethodModifier.doOutlinePrint(PrintWriter stream, String prefix) {
-    }
-
-    public void ModifyMethodModifier.doOutlinePrint(PrintWriter stream, String prefix) {
-    }
-
     public void RemoveFieldModifier.doOutlinePrint(PrintWriter stream, String prefix) {
-    }
-
-    public void RemoveMethodModifier.doOutlinePrint(PrintWriter stream, String prefix) {
     }
 
     public void AddInterfaceModifier.doOutlinePrint(PrintWriter stream, String prefix) {

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2014, Rudolf Schlatte. All rights reserved. 
+ * Copyright (c) 2014, Rudolf Schlatte. All rights reserved.
  * This file is licensed under the terms of the Modified BSD License.
  */
 
@@ -7,7 +7,6 @@
 // - Generate code for full ABS
 // - Implement the raiseExceptions flag
 // - Implement parsing of incomplete expressions and generate the corresponding AST
-// - Make ASTNode class not inherit from beaver node anymore
 grammar ABS;
 
 TraditionalComment : '/*' .*? '*/' -> skip ;
@@ -75,7 +74,7 @@ exp :         // Try eff_exp first - some of them have a pure_exp prefix
     ;
 
 eff_exp : pure_exp '.' 'get'                               # GetExp
-    | 'new' l='local'? c=TYPE_IDENTIFIER
+    | 'new' l='local'? c=qualified_type_identifier
         '(' pure_exp_list ')'                             # NewExp
     | a='await'? o=pure_exp '!' m=IDENTIFIER
         '(' pure_exp_list ')'                             # AsyncCallExp
@@ -136,7 +135,8 @@ stmt : annotation* type_exp IDENTIFIER ('=' exp)? ';'              # VardeclStmt
     | annotation* '{' stmt* '}'                                    # BlockStmt
     | annotation* 'if' '(' c=pure_exp ')' l=stmt ('else' r=stmt)?  # IfStmt
     | annotation* 'while' '(' c=pure_exp ')' stmt                  # WhileStmt
-    | annotation* 'try' b=stmt 'catch' '{' casestmtbranch* '}'
+    | annotation* 'try' b=stmt
+        'catch' (('{' casestmtbranch* '}') | casestmtbranch)
         ('finally' f=stmt)?                                        # TryCatchFinallyStmt
     | annotation* 'await' guard ';'                                # AwaitStmt
     | annotation* 'suspend' ';'                                    # SuspendStmt
@@ -196,21 +196,23 @@ function_decl : annotation*
 // Interfaces
 
 interface_decl : annotation*
-        'interface' qualified_type_identifier
+        'interface' TYPE_IDENTIFIER
         ('extends' e+=interface_name (',' e+=interface_name)*)?
         '{' methodsig* '}'
     ;
-    
+
 methodsig : annotation* type_use IDENTIFIER paramlist ';' ;
 
 // Classes
 
 class_decl : annotation*
-        'class' qualified_type_identifier paramlist?
+        'class' TYPE_IDENTIFIER paramlist?
         ('implements' interface_name (',' interface_name)*)?
         '{'
         field_decl*
         ('{' stmt* '}')?
+        ( 'recover' '{' casestmtbranch* '}' )?
+        trait_usage*
         method*
         '}'
     ;
@@ -250,7 +252,25 @@ decl : datatype_decl
     | exception_decl
     | interface_decl
     | class_decl
+    | trait_decl
     ;
+
+
+trait_decl : 'trait' TYPE_IDENTIFIER '=' trait_expr ;
+
+trait_expr : '{' method* '}'		            #TraitSetFragment
+    | method 				            #TraitSetFragment
+    | TYPE_IDENTIFIER				    #TraitNameFragment
+    | trait_expr trait_oper	                    #TraitApplyFragment
+    ;
+
+trait_oper : 'removes' methodsig                    #TraitRemoveFragment
+    | 'removes' '{' methodsig* '}'                  #TraitRemoveFragment
+    | 'adds' trait_expr                             #TraitAddFragment
+    | 'modifies' trait_expr                         #TraitModifyFragment
+    ;
+
+trait_usage: 'uses' trait_expr ';' ;
 
 delta_decl : 'delta' TYPE_IDENTIFIER
         ('(' p+=delta_param (',' p+=delta_param)* ')')? ';'
@@ -286,7 +306,7 @@ oo_modifier : 'adds' class_decl                            # DeltaAddClassModifi
     | 'modifies' 'class' n=qualified_type_identifier
         ('adds' ia+=interface_name (',' ia+=interface_name)*)?
         ('removes' ir+=interface_name (',' ir+=interface_name)*)?
-        '{' class_modifier_fragment* '}'                   # DeltaModifyClassModifier
+        '{' class_modifier_fragment*? '}'                  # DeltaModifyClassModifier
     | 'adds' interface_decl                                # DeltaAddInterfaceModifier
     | 'removes' 'interface' qualified_type_identifier ';'  # DeltaRemoveInterfaceModifier
     | 'modifies' 'interface' qualified_type_identifier
@@ -295,9 +315,7 @@ oo_modifier : 'adds' class_decl                            # DeltaAddClassModifi
 
 class_modifier_fragment : 'adds' field_decl  # DeltaAddFieldFragment
     | 'removes' field_decl                   # DeltaRemoveFieldFragment
-    | 'adds' method                          # DeltaAddMethodFragment
-    | 'modifies' method                      # DeltaModifyMethodFragment
-    | 'removes' methodsig                    # DeltaRemoveMethodFragment
+    | trait_oper     						 # DeltaTraitFragment
     ;
 
 interface_modifier_fragment : 'adds' methodsig   # DeltaAddMethodsigFragment
@@ -374,14 +392,27 @@ attr_assignment : IDENTIFIER '=' (i=INTLITERAL | b=TYPE_IDENTIFIER | s=STRINGLIT
 
 // Products
 product_decl : 'product' TYPE_IDENTIFIER
-        '(' (feature (',' feature)*)? ')'
-        ('{' product_reconfiguration* '}'
-        | ';')
+    (
+      '(' (feature (',' feature)*)? ')'
+      ('{' product_reconfiguration* '}' | ';')
+    |
+      '=' product_expr ';'
+    )
     ;
 
 product_reconfiguration : product=TYPE_IDENTIFIER
         'delta' delta_id (',' delta_id)*
         'stateupdate' update=TYPE_IDENTIFIER ';'
+    ;
+
+// Product Expression
+product_expr
+    : '{' feature (',' feature)* '}'                          # ProductFeatureSet
+    | l=product_expr ANDAND r=product_expr                    # ProductIntersect
+    | l=product_expr OROR r=product_expr                      # ProductUnion
+    | l=product_expr MINUS r=product_expr                     # ProductDifference
+    | TYPE_IDENTIFIER                                         # ProductName
+    | '(' product_expr ')'                                    # ProductParen
     ;
 
 // mTVL Feature model

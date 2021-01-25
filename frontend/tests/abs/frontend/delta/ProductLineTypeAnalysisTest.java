@@ -11,14 +11,54 @@ import java.util.UUID;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
-import abs.frontend.analyser.SemanticErrorList;
+import abs.frontend.analyser.SemanticConditionList;
 import abs.frontend.ast.*;
 
 public class ProductLineTypeAnalysisTest extends DeltaTest {
 
+    @Test
+    public void wellFormedProductLine1() {
+        Model model = assertParseOk(
+                "module M;"
+                        + "delta D1;"
+                        + "delta D2;"
+                        + "productline PL;"
+                        + "features A;"
+                        + "delta D1 after D2;"
+                );
+        ProductLine pl = model.getProductLine();
+        SemanticConditionList errors = new SemanticConditionList();
+
+        /*
+         * No delta clause for D2
+         */
+        assertFalse(ProductLineTypeAnalysisHelper.wellFormedProductLine(pl, errors));
+        assertEquals(1, errors.getErrorCount());
+    }
 
     @Test
-    public void stronglyUnambiguousProductLine() {
+    public void wellFormedProductLine2() {
+        Model model = assertParseOk(
+                "module M;"
+                        + "delta D1;"
+                        + "delta D2;"
+                        + "productline PL;"
+                        + "features A;"
+                        + "delta D1 after D2;"
+                        + "delta D2;"
+                );
+        ProductLine pl = model.getProductLine();
+        SemanticConditionList errors = new SemanticConditionList();
+
+        /*
+         * All OK
+         */
+        assertTrue(ProductLineTypeAnalysisHelper.wellFormedProductLine(pl, errors));
+        assertEquals(0, errors.getErrorCount());
+    }
+
+    @Test
+    public void stronglyUnambiguousProductLine1() {
         Model model = assertParseOk(
                 "module M;"
                         + "delta D1; uses M; modifies class C { adds Unit foo() {} }"
@@ -29,102 +69,117 @@ public class ProductLineTypeAnalysisTest extends DeltaTest {
                         + "delta D2 after D1;"
                 );
         ProductLine pl = model.getProductLine();
-        SemanticErrorList errors = new SemanticErrorList();
+        SemanticConditionList errors = new SemanticConditionList();
 
         assertTrue(ProductLineTypeAnalysisHelper.isStronglyUnambiguous(pl, errors));
-        assertEquals(0, errors.size());
+        assertEquals(0, errors.getErrorCount());
+    }
 
-        model = assertParseOk(
+    @Test
+    public void stronglyUnambiguousProductLine2() {
+        Model model = assertParseOk(
                 "module M;"
                         + "delta D1; uses M; modifies class C { adds Unit foo() {} }"
-                        + "delta D2; modifies class M.C { adds Unit bar() {} }"
+                        + "delta D2; uses M; modifies class C { adds Unit bar() {} }"
                         + "productline PL;"
                         + "features A;"
                         + "delta D1;"
                         + "delta D2;"
                 );
-        pl = model.getProductLine();
-        errors = new SemanticErrorList();
+        ProductLine pl = model.getProductLine();
+        SemanticConditionList errors = new SemanticConditionList();
 
+        /*
+         * Both deltas are in same partition (no order specified)
+         * They modify class C in different ways, by adding different methods
+         */
         assertTrue(ProductLineTypeAnalysisHelper.isStronglyUnambiguous(pl, errors));
-        assertEquals(0, errors.size());
+        assertEquals(0, errors.getErrorCount());
+    }
 
-        model = assertParseOk(
+    @Test
+    public void stronglyUnambiguousProductLine3() {
+        Model model = assertParseOk(
                 "module M;"
                         + "productline PL;"
                         + "features A;"
                 );
-        pl = model.getProductLine();
-        errors = new SemanticErrorList();
+        ProductLine pl = model.getProductLine();
+        SemanticConditionList errors = new SemanticConditionList();
 
+        /*
+         * No deltas, no worries
+         */
         assertTrue(ProductLineTypeAnalysisHelper.isStronglyUnambiguous(pl, errors));
-        assertEquals(0, errors.size());
+        assertEquals(0, errors.getErrorCount());
 
         List<Set<String>> partition = pl.getDeltaPartition();
         assertEquals(partition.size(), 0);
+    }
 
-        model = assertParseOk(
+    @Test
+    public void stronglyUnambiguousProductLine4() {
+        Model model = assertParseOk(
                 "module M;"
                         + "delta D1; uses M; modifies class C { adds Unit foo() {} }"
-                        + "delta D2; modifies class M.C { adds Unit foo() {} }"
+                        + "delta D2; uses M; modifies class C { adds Unit foo() {} }"
                         + "productline PL;"
                         + "features A;"
                         + "delta D1;"
                         + "delta D2;"
                 );
-        pl = model.getProductLine();
-        errors = new SemanticErrorList();
+        ProductLine pl = model.getProductLine();
+        SemanticConditionList errors = new SemanticConditionList();
 
+        /* Both deltas are in same partition (no order specified)
+         * Both deltas modify the same method C.foo
+         */
         assertFalse(ProductLineTypeAnalysisHelper.isStronglyUnambiguous(pl, errors));
-        assertEquals(1, errors.size());
+        assertEquals(1, errors.getErrorCount());
+    }
 
-        model = assertParseOk(
-                "module M;"
-                        + "delta D1; uses M; modifies class C { adds Unit foo() {} }"
-                        + "delta D2; modifies class M.C { adds Unit foo() {} }"
-                        + "productline PL;"
-                        + "features A;"
-                        + "delta D1;"
-                        + "delta D2;"
-                );
-        pl = model.getProductLine();
-        errors = new SemanticErrorList();
-
-        assertFalse(ProductLineTypeAnalysisHelper.isStronglyUnambiguous(pl, errors));
-        assertTrue(errors.size() == 1);
-
-        model = assertParseOk(
+    @Test
+    public void stronglyUnambiguousProductLine5() {
+        Model model = assertParseOk(
                 "module M;"
                         + "delta D1; uses M; adds class C {}"
-                        + "delta D2; removes class M.C;"
+                        + "delta D2; uses M; removes class C;"
                         + "productline PL;"
                         + "features A;"
                         + "delta D1;"
                         + "delta D2;"
                 );
-        pl = model.getProductLine();
-        errors = new SemanticErrorList();
+        ProductLine pl = model.getProductLine();
+        SemanticConditionList errors = new SemanticConditionList();
 
+        /* Both deltas are in same partition (no order specified)
+         * Both deltas act on the same class C
+         */
         assertFalse(ProductLineTypeAnalysisHelper.isStronglyUnambiguous(pl, errors));
-        assertEquals(1, errors.size());
+        assertEquals(1, errors.getErrorCount());
+    }
 
-        model = assertParseOk(
+    @Test
+    public void stronglyUnambiguousProductLine6() {
+        Model model = assertParseOk(
                 "module M;"
-                        + "delta D1; modifies class M.C { adds Unit foo() {} }"
-                        + "delta D2; removes class M.C;"
-                        + "delta D3; adds class M.C {}"
+                        + "delta D1; uses M; modifies class C { adds Unit foo() {} }"
+                        + "delta D2; uses M; removes class C;"
+                        + "delta D3; uses M; adds class C {}"
                         + "productline PL;"
                         + "features A;"
                         + "delta D1;"
                         + "delta D2;"
                         + "delta D3;"
                 );
-        pl = model.getProductLine();
-        errors = new SemanticErrorList();
+        ProductLine pl = model.getProductLine();
+        SemanticConditionList errors = new SemanticConditionList();
 
+        /* All 3 deltas are in same partition
+         * D1, D2, D3 act on the same class C
+         */
         assertFalse(ProductLineTypeAnalysisHelper.isStronglyUnambiguous(pl, errors));
-        assertEquals(2, errors.size());
-
+        assertEquals(2, errors.getErrorCount());
     }
 
     @Test
@@ -148,8 +203,9 @@ public class ProductLineTypeAnalysisTest extends DeltaTest {
             msig.setName("m" + id);
             MethodImpl mimpl = new MethodImpl();
             mimpl.setMethodSig(msig);
-            ModifyMethodModifier mmod = new ModifyMethodModifier();
-            mmod.setMethodImpl(mimpl);
+            abs.frontend.ast.List<MethodImpl> list = new abs.frontend.ast.List<>();
+            list.add(mimpl);
+            DeltaTraitModifier dmod = new DeltaTraitModifier(new ModifyMethodModifier(new TraitSetExpr(list)));
 
             cu.addDeltaDecl(new DeltaDecl("D" + id,
                     new abs.frontend.ast.List<DeltaParamDecl>(),
@@ -164,7 +220,7 @@ public class ProductLineTypeAnalysisTest extends DeltaTest {
         }
 
         pl = model.getProductLine();
-        SemanticErrorList errors = new SemanticErrorList();
+        SemanticConditionList errors = new SemanticConditionList();
 
         long startTime = System.currentTimeMillis();
         assertTrue(ProductLineTypeAnalysisHelper.isStronglyUnambiguous(pl, errors));
@@ -172,44 +228,4 @@ public class ProductLineTypeAnalysisTest extends DeltaTest {
         //System.out.println(n + " deltas. time (ms): " + (stopTime - startTime));
     }
 
-
-//    @Test
-//    public void ntaTest() {
-//        Model model = new Model();
-//        assertEquals(1, model.getTestList().getNumChild());
-//    }
-
-    @Test
-    public void implicitProducts1() {
-        Model model = assertParseOk(
-                "root FM {"
-                        + " group allof { A }"
-                        + "}"
-                );
-        //one single product
-        assertEquals(1, model.getImplicitProductList().getNumChild());
-    }
-
-    @Test
-    public void implicitProductsIgnoreAttributes() {
-        Model model = assertParseOk(
-                "root FM {"
-                        + "group allof { opt A { ifin: FM.attr == 99; ifout: FM.attr == 14; } }"
-                        + "Int attr;"
-                        + "}"
-                );
-        //two products: {FM}, {FM, A}
-        assertEquals(2, model.getImplicitProductList().getNumChild());
-    }
-
-    @Test
-    public void implicitProductsMany() {
-        Model model = assertParseOk(
-                "root FM {"
-                        + "group [0..*] { A, B, C, D, E, F, G, H, I, J }"
-                        + "}"
-                );
-        //with 10 features there should be 2^10 valid products
-        assertEquals(1024, model.getImplicitProductList().getNumChild());
-    }
 }

@@ -8,11 +8,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import abs.frontend.analyser.SemanticErrorList;
+import com.google.common.base.Strings;
+
+import abs.frontend.analyser.SemanticConditionList;
 import abs.frontend.ast.DeltaDecl;
-import abs.frontend.ast.ImplicitProduct;
+import abs.frontend.ast.Product;
 import abs.frontend.ast.Model;
 
+/*
+ * A DeltaTrie (product family generation trie, Damiani & Schaefer 2012) is a representation of all possible products.
+ * Type checking all possible product variants amounts to traversing the trie and computing the type abstractions
+ * for all (intermediate) products associated to the nodes of the trie.
+ *
+ */
 public class DeltaTrie {
     private final Node root;
     private final Model model;
@@ -20,24 +28,24 @@ public class DeltaTrie {
     /**
      * Constructor
      */
-    public DeltaTrie(Model model, SemanticErrorList errors) {
+    public DeltaTrie(Model model, SemanticConditionList errors) {
         this.model = model;
         root = new Node(errors);
     }
 
     // Adds a word to the Trie
-    public void addWord(List<String> word, ImplicitProduct product) {
-//        System.out.print("DeltaSequence");
+    public void addWord(List<String> word, Product product) {
+        // System.out.print("DeltaSequence");
         if (word.size() == 0) // no deltas
             root.isValidProduct = true;
         else
             root.addWord(word, product, 0);
-//        System.out.println();
+        // System.out.println();
     }
 
     /**********************************************************************************************/
     /*
-     * Trie Node
+     * Trie node
      */
     class Node {
         private final Map<String, Node> children;
@@ -45,8 +53,8 @@ public class DeltaTrie {
         private boolean isValidProduct = false;
         private final ProgramTypeAbstraction ta;
 
-         // Constructor for top level root node
-        public Node(SemanticErrorList errors) {
+        // Constructor for top level root node
+        public Node(SemanticConditionList errors) {
             this.deltaID = "core";
             this.children = new HashMap<String, Node>();
             this.ta = new ProgramTypeAbstraction(errors);
@@ -55,9 +63,9 @@ public class DeltaTrie {
 
         // Constructor for child node
         public Node(String name, ProgramTypeAbstraction ta) {
-           this.children = new HashMap<String, Node>();
-           this.deltaID = name;
-           this.ta = ta;
+            this.children = new HashMap<String, Node>();
+            this.deltaID = name;
+            this.ta = ta;
         }
 
         /** Add a word to the trie
@@ -66,10 +74,10 @@ public class DeltaTrie {
          * @param product  The SPL product that this word represents (or null if none)
          * @param d        Index of List element to start with (for recursive invocation)
          */
-        protected void addWord(List<String> word, ImplicitProduct product, int d) {
+        protected void addWord(List<String> word, Product product, int d) {
             Node nextNode;
 
-//            System.out.print(">>>" + word.get(d));
+            //System.out.print(">>>" + word.get(d));
 
             if (children.containsKey(word.get(d))) {
                 // node already exists
@@ -83,15 +91,16 @@ public class DeltaTrie {
                 nextTA.applyDelta(delta, product);
 
                 children.put(word.get(d), nextNode);
-//                System.out.print("*");
+                //System.out.print("*");
             }
 
             if (word.size() > d+1)
                 nextNode.addWord(word, product, d+1);
             else {
                 nextNode.isValidProduct = true;
-                // TODO type check this product (?)
-//                System.out.println(".");
+                //System.out.println("TA: \n" + ta);
+                // TODO type check this product (???)
+                //System.out.println(".");
             }
         }
 
@@ -113,29 +122,64 @@ public class DeltaTrie {
             return ta;
         }
 
+        /*
         @Override
         public String toString() {
-            return toString(new StringBuilder());
+            return toString(new StringBuilder(), false);
         }
 
-        public String toString(StringBuilder s) {
+
+        public String toString(StringBuilder s, boolean printTA) {
             s.append("Delta: " + deltaID + ".  " + "Valid Product: " + isValidProduct + "\n");
-            s.append(ta.toString());
+            if (printTA)
+                s.append(ta.toString());
             for (Node child : children.values())
-                child.toString(s);
+                child.toString(s, printTA);
             return s.toString();
+        }
+         */
+
+        protected int height() {
+            int h = 0;
+            for (Node child : children.values())
+                h = Math.max(h, child.height());
+            return 1 + h;
+        }
+
+        protected void traversePreorder(StringBuilder s, int level) {
+            s.append(Strings.repeat("|   ", level));
+            s.append("|---");
+            s.append(getDeltaID() + (isValidProduct() ? "\u2713" : "") + "\n");
+            for (Node child : getChildren().values())
+                child.traversePreorder(s, level+1);
         }
 
     }
-    /**********************************************************************************************/
+
+    /*
+     * Convenience methods
+     */
 
     public Node getRoot() {
         return root;
     }
 
+    /*
+     * Height of the tree (1=only root node)
+     */
+    public int height() {
+        return root.height();
+    }
+
+    /*
+     * Return a textual representation of the tree
+     * A checkmark next to a node means it represents a valid product.
+     */
     @Override
     public String toString() {
-        return root.toString();
+        StringBuilder s = new StringBuilder();
+        root.traversePreorder(s, 0);
+        return s.toString();
     }
 
 }

@@ -8,10 +8,13 @@ import java.util.Arrays;
 import java.util.List;
 
 import abs.backend.common.CodeStream;
+import abs.frontend.ast.ASTNode;
 import abs.frontend.ast.ClassDecl;
+import abs.frontend.ast.Model;
 import abs.frontend.ast.ModuleDecl;
 import abs.frontend.ast.ParamDecl;
 import abs.frontend.ast.PureExp;
+import abs.frontend.typechecker.Type;
 
 /**
  * Utility functions to mostly generate headers or parameter lists.
@@ -115,9 +118,9 @@ public class ErlUtil {
         return "m_" + name.replace('.', '_');
     }
 
-    public static void buildParams(CodeStream ecs, abs.frontend.ast.List<PureExp> params, Vars vars, boolean emptyStack) {
+    public static void buildParams(CodeStream ecs, abs.frontend.ast.List<PureExp> params, List<Type> paramTypes, Vars vars, boolean emptyStack) {
         ecs.print("[");
-        buildParamsWithOutBrackets(ecs, params, vars);
+        buildParamsWithOutBrackets(ecs, params, paramTypes, vars);
 
         if (params.hasChildren()) {
             ecs.print(',');
@@ -132,18 +135,26 @@ public class ErlUtil {
         ecs.print("]");
     }
 
-    public static void buildParamsWithOutBrackets(CodeStream ecs, abs.frontend.ast.List<PureExp> params, Vars vars) {
+    public static void buildParamsWithOutBrackets(CodeStream ecs, abs.frontend.ast.List<PureExp> params, List<Type> paramTypes, Vars vars) {
         boolean first = true;
-        for (PureExp a : params) {
+        int num = paramTypes.size();
+        for (int i = 0; i < num; i++) {
+            PureExp param = params.getChild(i);
+            Type paramType = paramTypes.get(i);
+            boolean needTrunc=paramType.isIntType()
+                && param.getType().isRatType();
             if (!first)
                 ecs.print(',');
             else
                 first = false;
-            a.generateErlangCode(ecs, vars);
+
+            if (needTrunc) ecs.print("rationals:trunc(");
+            param.generateErlangCode(ecs, vars);
+            if (needTrunc) ecs.print(")");
         }
     }
 
-    public static void argumentList(CodeStream ecs, PureExp callee, boolean builtin, boolean imperativeContext, abs.frontend.ast.List<PureExp> params, Vars vars) {
+    public static void argumentList(CodeStream ecs, PureExp callee, boolean builtin, boolean imperativeContext, abs.frontend.ast.List<PureExp> params, List<Type> paramTypes, Vars vars) {
         ecs.print("(");
         if (callee != null) {
             callee.generateErlangCode(ecs, vars);
@@ -158,7 +169,7 @@ public class ErlUtil {
             }
         }
 
-        buildParamsWithOutBrackets(ecs, params, vars);
+        buildParamsWithOutBrackets(ecs, params, paramTypes, vars);
 
         if (!builtin) {
             ecs.print(',');
@@ -178,16 +189,32 @@ public class ErlUtil {
         ecs.incIndent();
         ecs.println("{stop_world, CogRef} ->");
         ecs.incIndent();
-        ecs.println("task:block_for_gc(Cog),");
-        ecs.print("task:acquire_token(Cog, ");
+        ecs.println("cog:process_is_blocked_for_gc(Cog, self()),");
+        ecs.println("cog:process_is_runnable(Cog,self()),");
+        ecs.print("task:wait_for_token(Cog,");
         if (functional) {
-            ecs.print("Stack");
+            ecs.print("lists:map(fun({_, X}) -> X end, maps:to_list(get(vars))) ++ Stack");
         } else {
             ecs.print(vars.toStack());
         }
-        ecs.println(")");
+        ecs.println(");");
+        ecs.decIndent().println("die_prematurely ->");
+        ecs.incIndent().println("task:send_notifications(killed_by_the_clock),");
+        ecs.println("exit(killed_by_the_clock)");
         ecs.decIndent();
         ecs.decIndent();
         ecs.println("after 0 -> ok end,");
+    }
+
+    public static void emitLocationInformation(CodeStream ecs, Model m, String filename, int start, int end) {
+        if (m.generate_erlang_coverage) {
+            ecs.pf("coverage:register(\"%s\", %s, %s),", new java.io.File(filename).getName(), start, end);
+        } else {
+            ecs.pf(" %%%% %s:%s--%s", filename, start, end);
+        }
+    }
+
+    public static String absParamDeclToErlVarName(ParamDecl p) {
+        return Vars.PREFIX + p.getName() + "_0";
     }
 }

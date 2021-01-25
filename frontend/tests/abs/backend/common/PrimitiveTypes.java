@@ -69,6 +69,12 @@ public class PrimitiveTypes extends SemanticTests {
     }
 
     @Test
+    public void intLtLong() {
+        // 2^63, i.e., Long.MAX_VALUE + 1
+        assertEvalTrue("{ Bool testresult = 5 < 9223372036854775808;  }");
+    }
+
+    @Test
     public void intLtEq() {
         assertEvalTrue("{ Bool testresult = 5 <= 10;  }");
     }
@@ -201,5 +207,16 @@ public class PrimitiveTypes extends SemanticTests {
     @Test
     public void divByZero() throws Exception {
         assertEvalFails("{Bool testresult = 1/0 != 0;}");
+    }
+
+    @Test
+    public void bug131() {
+        // Test that non-trivial arithmetic expressions are properly bracketized in generated code
+        assertEvalTrue("def Int a() = 5; { Bool testresult = 100-(a() + 2) == 93; }");
+    }
+
+    @Test
+    public void wrappedIntRatCmp() {
+        assertEvalTrue("{ Bool testresult = Time(2) == Time(2/1); }");
     }
 }

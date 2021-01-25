@@ -19,7 +19,7 @@ public class FlattenedProductTest extends FrontendTest {
                 "module M;"
                         + "class C {}"
                         + "delta D1; uses M; modifies class C { adds Unit foo() {} }"
-                        + "delta D2; modifies class M.C { adds Unit foo() {} }"
+                        + "delta D2; uses M;modifies class C { adds Unit foo() {} }"
                         + "productline PL;"
                         + "features A;"
                         + "delta D1;"
@@ -30,6 +30,7 @@ public class FlattenedProductTest extends FrontendTest {
         assertTrue(imodel.getModel() == model);
 
         List<InstNode> l = imodel.getInstNodeList();
+        
         List<InstNode> l1 = imodel.getInstNodeList();
         List<InstNode> l2 = imodel.getInstNodeList();
 

@@ -20,7 +20,7 @@ import abs.backend.java.observing.COGView;
 import abs.backend.java.observing.ObjectView;
 import abs.backend.java.observing.SystemObserver;
 import abs.backend.java.scheduling.RandomSchedulingStrategy;
-import abs.frontend.analyser.SemanticErrorList;
+import abs.frontend.analyser.SemanticConditionList;
 import abs.frontend.ast.Model;
 
 public class JavaBackendTest extends ABSTest {
@@ -158,7 +158,7 @@ public class JavaBackendTest extends ABSTest {
         ArrayList<String> args = new ArrayList<String>();
         args.add("java");
         args.addAll(Arrays.asList(jvmargs));
-        args.addAll(Arrays.asList("-cp", "bin" + File.pathSeparator + "lib/apfloat.jar" + File.pathSeparator + javaCode.getSrcDir().getAbsolutePath()+"/gen/test", javaCode.getFirstMainClass()));
+        args.addAll(Arrays.asList("-cp", "bin" + File.pathSeparator + "lib/apfloat-1.8.2.jar" + File.pathSeparator + javaCode.getSrcDir().getAbsolutePath()+"/gen/test", javaCode.getFirstMainClass()));
         args.addAll(absArgs);
         ProcessBuilder pb = new ProcessBuilder(args.toArray(new String[0]));
         pb.redirectErrorStream(true);
@@ -227,16 +227,16 @@ public class JavaBackendTest extends ABSTest {
         // c2[len+1] = Config.WITH_LOC_INF; // XXX: Trips up CI.
         model = assertParse(code, c2);
         if (model.hasErrors()) {
-            fail(model.getErrors().get(0).getHelpMessage());
+            fail(model.getErrors().getFirstError().getHelpMessage());
         } else {
-            SemanticErrorList el = model.typeCheck();
-            if (!el.isEmpty()) {
-                fail(el.get(0).getMsg());
+            SemanticConditionList el = model.typeCheck();
+            if (el.containsErrors()) {
+                fail(el.getFirstError().getMsg());
             }
         }
 
         if (model.hasErrors()) {
-            fail(model.getErrors().getFirst().getHelpMessage());
+            fail(model.getErrors().getFirstError().getHelpMessage());
             return null;
         }
         return getJavaCode(model);
@@ -244,7 +244,7 @@ public class JavaBackendTest extends ABSTest {
 
     static JavaCode getJavaCode(Model model) throws IOException, JavaCodeGenerationException {
         JavaCode code = new JavaCode();
-        model.generateJavaCode(code);
+        model.generateJavaCode(code, true);
         return code;
     }
 
